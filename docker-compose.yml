@@ -1,0 +1,44 @@
+version: "3"
+
+services:
+  ai: &python
+    container_name: AI
+    build:
+      context: ./AI
+    command: sh -c "python manage.py runserver 0:8000"
+    ports:
+      - 8000:8000
+    volumes:
+      - ./AI/:/AI/
+    networks:
+      - app-tier
+    depends_on:
+      - rabbitmq
+      - celery
+      - redis
+
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - "5672:5672"
+    networks:
+      - app-tier
+
+  celery:
+    <<: *python
+    container_name: celery
+    command: "celery -A model worker --loglevel=INFO"
+    ports: []
+    depends_on:
+      - rabbitmq
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-tier
+
+networks:
+  app-tier:
+    driver: bridge
