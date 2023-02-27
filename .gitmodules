@@ -1,9 +1,6 @@
 [submodule "AI"]
 	path = AI
 	url = https://github.com/Google-Solution-Challenge-Netwalk/AI.git
-[submodule "SpringBoot"]
-	path = SpringBoot
-	url = https://github.com/Google-Solution-Challenge-Netwalk/SpringBoot.git
 [submodule "springboot"]
 	path = springboot
 	url = https://github.com/Google-Solution-Challenge-Netwalk/springboot.git
