@@ -1,70 +1,78 @@
-version: "3"
-
 services:
-  ai: &python
-    container_name: AI
-    build:
-      context: ./AI
-    command: sh -c "python manage.py makemigrations && python manage.py migrate &&  python manage.py runserver 0:8000"
-    ports:
-      - 8000:8000
+  version: "3"
+
+  services:
+    ai: &python
+      container_name: AI
+      build:
+        context: ./AI
+      command: sh -c "python manage.py makemigrations && python manage.py migrate &&  python manage.py runserver 0:8000"
+      ports:
+        - 8000:8000
+      volumes:
+        - ./AI/:/AI/
+      networks:
+        - app-tier
+      depends_on:
+        - rabbitmq
+        - celery
+        - redis
+        - mysql
+
+    rabbitmq:
+      image: rabbitmq
+      ports:
+        - "5672:5672"
+      networks:
+        - app-tier
+
+    celery:
+      <<: *python
+      container_name: celery
+      command: "celery -A model worker --loglevel=INFO"
+      ports: [ ]
+      depends_on:
+        - rabbitmq
+
+    redis:
+      image: redis
+      ports:
+        - "6379:6379"
+      networks:
+        - app-tier
+
+  db:
+    image: mariadb:10.10.2
+    container_name: mariaDB
     volumes:
-      - ./AI/:/AI/
-    networks:
-      - app-tier
-    depends_on:
-      - rabbitmq
-      - celery
-      - redis
-      - mysql
-
-  rabbitmq:
-    image: rabbitmq
+      - mariadb_data:/var/lib/maria
     ports:
-      - "5672:5672"
-    networks:
-      - app-tier
-
-  celery:
-    <<: *python
-    container_name: celery
-    command: "celery -A model worker --loglevel=INFO"
-    ports: []
-    depends_on:
-      - rabbitmq
-
-  redis:
-    image: redis
-    ports:
-      - "6379:6379"
-    networks:
-      - app-tier
-
-  mysql:
-    image: mysql
-    container_name: mysql
-    volumes: 
-      - mysql_data:/var/lib/mysql
-    command: mysqld --character-set-server=utf8 --collation-server=utf8_general_ci
-    restart: always
+      - 3306:3306
+    env_file: ./springboot/env
     environment:
-      MYSQL_ROOT_PASSWORD: 1234
-      MYSQL_DATABASE: abc
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: admin
-    ports: 
-      - "3306:3306"
+      TZ: Asia/Seoul
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_HOST: ${MYSQL_ROOT_HOST}
     networks:
       - app-tier
-    healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD']
-      interval: 10s
-      timeout: 2s
-      retries: 100
 
-networks:
-  app-tier:
-    driver: bridge
+  spring_boot:
+    container_name: spring_boot
+    image: ${SPRING_BOOT_IMAGE}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: ${MYSQL_URL}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    networks:
+      - app-tier
 
-volumes:
-  mysql_data:
+  networks:
+    app-tier:
+      driver: bridge
+
+  volumes:
+    maria_data:
