@@ -1,78 +1,74 @@
+version: "3"
+
 services:
-  version: "3"
+  ai: &python
+    container_name: AI
+    build:
+      context: ./AI
+    command: sh -c "python manage.py makemigrations && python manage.py migrate &&  python manage.py runserver 0:8000"
+    ports:
+      - 8000:8000
+    volumes:
+      - ./AI/:/AI/
+    networks:
+      - app-tier
+    depends_on:
+      - rabbitmq
+      - celery
+      - redis
 
-  services:
-    ai: &python
-      container_name: AI
-      build:
-        context: ./AI
-      command: sh -c "python manage.py makemigrations && python manage.py migrate &&  python manage.py runserver 0:8000"
-      ports:
-        - 8000:8000
-      volumes:
-        - ./AI/:/AI/
-      networks:
-        - app-tier
-      depends_on:
-        - rabbitmq
-        - celery
-        - redis
-        - mysql
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - "5672:5672"
+    networks:
+      - app-tier
 
-    rabbitmq:
-      image: rabbitmq
-      ports:
-        - "5672:5672"
-      networks:
-        - app-tier
+  celery:
+    <<: *python
+    container_name: celery
+    command: "celery -A model worker --loglevel=INFO"
+    ports: [ ]
+    depends_on:
+      - rabbitmq
 
-    celery:
-      <<: *python
-      container_name: celery
-      command: "celery -A model worker --loglevel=INFO"
-      ports: [ ]
-      depends_on:
-        - rabbitmq
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-tier
 
-    redis:
-      image: redis
-      ports:
-        - "6379:6379"
-      networks:
-        - app-tier
+  db:
+    image: mariadb:10.10.2
+    container_name: mariaDB
+    ports:
+      - 3306:3306
+    volumes:
+        - ./db/conf.d:/etc/mysql/conf.d
+        - ./db/data:/var/lib/mysql
+        - ./db/initdb.d:/docker-entrypoint-initdb.d
+    env_file: .env
+    environment:
+      TZ: Asia/Seoul
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_HOST: ${MYSQL_ROOT_HOST}
+    networks:
+      - app-tier
 
-    db:
-      image: mariadb:10.10.2
-      container_name: mariaDB
-      volumes:
-        - mariadb_data:/var/lib/maria
-      ports:
-        - 3306:3306
-      env_file: ./springboot/env
-      environment:
-        TZ: Asia/Seoul
-        MYSQL_DATABASE: ${MYSQL_DATABASE}
-        MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-        MYSQL_ROOT_HOST: ${MYSQL_ROOT_HOST}
-      networks:
-        - app-tier
+  spring_boot:
+    container_name: spring_boot
+    image: ${SPRING_BOOT_IMAGE}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: ${MYSQL_URL}
+    networks:
+      - app-tier
 
-    spring_boot:
-      container_name: spring_boot
-      image: ${SPRING_BOOT_IMAGE}
-      ports:
-        - "8080:8080"
-      depends_on:
-        - db
-      environment:
-        SPRING_DATASOURCE_URL: ${MYSQL_URL}
-        SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      networks:
-        - app-tier
-
-  networks:
-    app-tier:
-      driver: bridge
-
-  volumes:
-    maria_data:
+networks:
+  app-tier:
+    driver: bridge
