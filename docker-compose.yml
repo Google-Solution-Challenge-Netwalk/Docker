@@ -41,34 +41,34 @@ services:
       networks:
         - app-tier
 
-  db:
-    image: mariadb:10.10.2
-    container_name: mariaDB
-    volumes:
-      - mariadb_data:/var/lib/maria
-    ports:
-      - 3306:3306
-    env_file: ./springboot/env
-    environment:
-      TZ: Asia/Seoul
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_ROOT_HOST: ${MYSQL_ROOT_HOST}
-    networks:
-      - app-tier
+    db:
+      image: mariadb:10.10.2
+      container_name: mariaDB
+      volumes:
+        - mariadb_data:/var/lib/maria
+      ports:
+        - 3306:3306
+      env_file: ./springboot/env
+      environment:
+        TZ: Asia/Seoul
+        MYSQL_DATABASE: ${MYSQL_DATABASE}
+        MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+        MYSQL_ROOT_HOST: ${MYSQL_ROOT_HOST}
+      networks:
+        - app-tier
 
-  spring_boot:
-    container_name: spring_boot
-    image: ${SPRING_BOOT_IMAGE}
-    ports:
-      - "8080:8080"
-    depends_on:
-      - db
-    environment:
-      SPRING_DATASOURCE_URL: ${MYSQL_URL}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-    networks:
-      - app-tier
+    spring_boot:
+      container_name: spring_boot
+      image: ${SPRING_BOOT_IMAGE}
+      ports:
+        - "8080:8080"
+      depends_on:
+        - db
+      environment:
+        SPRING_DATASOURCE_URL: ${MYSQL_URL}
+        SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      networks:
+        - app-tier
 
   networks:
     app-tier:
